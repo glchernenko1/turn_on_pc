@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	"net"
@@ -11,6 +12,8 @@ import (
 	"time"
 	"turn_on_pc/internal/config"
 	"turn_on_pc/internal/user"
+	"turn_on_pc/internal/user/db"
+	"turn_on_pc/pkg/client/mongodb"
 	"turn_on_pc/pkg/logging"
 )
 
@@ -19,6 +22,28 @@ func main() {
 	logger.Infoln("create Router")
 	router := httprouter.New()
 	cfg := config.GetConfig()
+
+	cfgMongo := cfg.MongoDB
+
+	mongoDBClient, err := mongodb.NewClient(context.Background(), cfgMongo.Host, cfgMongo.Port,
+		cfgMongo.Username, cfgMongo.Password, cfgMongo.Database, cfgMongo.AuthDB)
+	if err != nil {
+		panic(err)
+	}
+
+	storage := db.NewStorage(mongoDBClient, cfgMongo.CollectionName, logger)
+
+	user1 := user.User{
+		ID:           "",
+		Email:        "sadas@sadas.rt",
+		Username:     "sadas",
+		PasswordHash: "admin",
+	}
+	userID1, err := storage.Create(context.Background(), user1)
+	if err != nil {
+		return
+	}
+	logger.Infoln(userID1)
 
 	logger.Infoln("register user handler")
 	handler := user.NewHandler(logger)
